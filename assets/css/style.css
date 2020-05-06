@@ -1,0 +1,33 @@
+#learn-press-zibal-form {
+    padding: 20px;
+    background: #FFF;
+    border: 1px solid #DDD;
+    margin: 20px 0;
+}
+#learn-press-zibal-form .learn-press-form-row {
+	margin-bottom: 65px;
+}
+#learn-press-zibal-form .learn-press-form-row.has-error label,
+#learn-press-zibal-form .learn-press-form-row.has-error label .required{
+    color: #cc1600;
+}
+#learn-press-zibal-form .learn-press-form-row.has-error input,
+#learn-press-zibal-form .learn-press-form-row.has-error select{
+    border-color: #cc1600;
+}
+#learn-press-zibal-form .learn-press-form-row input {
+	direction:ltr;
+	text-align:left;
+}
+#learn-press-zibal-form .learn-press-zibal-form-clear {
+	clear:both;
+}
+#learn-press-zibal-form .learn-press-form-row label {
+	float:right;
+	width:150px;
+}
+/* rtl */
+#learn-press-zibal-form.learn-press-form-zibal-rtl {
+	direction:rtl;
+	text-align:right;
+}
