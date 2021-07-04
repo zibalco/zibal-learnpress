@@ -7,7 +7,7 @@
  * @author   Yahya Kangi
  * @link 	 https://zibal.ir
  * @package  LearnPress/Zibal/Templates
- * @version  1.0.0
+ * @version  1.1
  */
 
 /**

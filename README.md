@@ -1,9 +1,6 @@
-# zibal gateway for learnpress
+# zibal payment gateway for learnpress
 
-
-پوشه zibal-learnpress را در مسیر /wp-content/plugins/ آپلود کنید
-
-افزونه را از طریق منوی 'افزونه ها' در وردپرس فعال کنید
+افزونه را فعال کنید
 
 تنظیمات افزونه از طریق منوی تسویه حساب لرن پرس قابل دسترسی می باشد.
 

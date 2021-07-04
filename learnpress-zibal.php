@@ -1,12 +1,12 @@
 <?php
 /*
-Plugin Name: LearnPress - Zibal Payment
+Plugin Name: Zibal payment gateway for LearnPress
 Description: Zibal payment gateway for LearnPress.
 Author: Yahya Kangi
 Link: https://zibal.ir
-Version: 1.0.0
+Version: 1.1
 Author URI: https://github.com/YahyaKng/
-Tags: learnpress, zibal
+Tags: learnpress,zibal,gateway,payment,زیبال,lms,لرن پرس
 Text Domain: learnpress-zibal
 Domain Path: /languages/
 */

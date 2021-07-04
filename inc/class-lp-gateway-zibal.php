@@ -5,7 +5,7 @@
  * @author   Yahya Kangi
  * @link 	 https://zibal.ir
  * @package  LearnPress/Zibal/Classes
- * @version  1.0.0
+ * @version  1.1
  */
 // session_start();
 
@@ -27,6 +27,26 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 		 * @var string
 		 */
 		private $startPay = 'https://gateway.zibal.ir/start/';
+		
+		/**
+		 * @var string
+		 */
+		private $verifyUrl = 'https://gateway.zibal.ir/v1/verify/';
+		
+		/**
+		 * @var string
+		 */
+		private $restPaymentRequestUrl = 'https://gateway.zibal.ir/v1/request/';
+		
+		/**
+		 * @var string
+		 */
+		private $restPaymentVerification = 'https://gateway.zibal.ir/v1/verify/';
+		
+		/**
+		 * @var string
+		 */
+		private $soap = false;
 		
 		/**
 		 * @var string
@@ -77,7 +97,6 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 			}
 			
 			$this->merchant = $this->settings['merchant'];
-			
 			
 			if ( did_action( 'learn_press/zibal-add-on/loaded' ) ) {
 				return;
@@ -244,20 +263,20 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 			if ( $this->order ) {
 				$user            = learn_press_get_current_user();
 				$currency_code = learn_press_get_currency()  ;
-				if ($currency_code == 'TOM') {
-					$amount = $this->order->order_total * 10 ;
+				if ($currency_code == 'IRR') {
+					$amount = $this->order->order_total;
 				} else {
-					$amount = $this->order->order_total ;
+					$amount = $this->order->order_total * 10;
 				}
 
 				$this->form_data = array(
 					'amount'      => $amount,
 					'currency'    => strtolower( learn_press_get_currency() ),
 					'token'       => $this->token,
-					// 'description' => sprintf( __("Charge for %s","learnpress-zibal"), $user->get_data( 'email' ) ),
+					'description' => sprintf( __("Charge for %s","learnpress-zibal"), $user->get_data( 'email' ) ),
 					'customer'    => array(
 						'name'          => $user->get_data( 'display_name' ),
-						// 'billing_email' => $user->get_data( 'email' ),
+						'billing_email' => $user->get_data( 'email' ),
 					),
 					'errors'      => isset( $this->posted['form_errors'] ) ? $this->posted['form_errors'] : ''
 				);
@@ -275,12 +294,12 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 		 */
 		public function validate_fields() {
 			$posted        = learn_press_get_request( 'learn-press-zibal' );
-			// // // $email   = !empty( $posted['email'] ) ? $posted['email'] : "";
+			$email   = !empty( $posted['email'] ) ? $posted['email'] : "";
 			$mobile  = !empty( $posted['mobile'] ) ? $posted['mobile'] : "";
 			$error_message = array();
-			// // if ( !empty( $email ) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-				// $error_message[] = __( 'Invalid email format.', 'learnpress-zibal' );
-			// }
+			if ( !empty( $email ) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+				$error_message[] = __( 'Invalid email format.', 'learnpress-zibal' );
+			}
 			if ( !empty( $mobile ) && !preg_match("/^(09)(\d{9})$/", $mobile)) {
 				$error_message[] = __( 'Invalid mobile format.', 'learnpress-zibal' );
 			}
@@ -309,6 +328,7 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 				'result'   => $zibal ? 'success' : 'fail',
 				'redirect'   => $zibal ? $gateway_url : ''
 			);
+
 			return $json;
 		}
 
@@ -322,17 +342,16 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 		public function get_zibal_trackId() {
 			if ( $this->get_form_data() ) {
 				$checkout = LP()->checkout();
-
 				$data = [
 					'merchant' => $this->merchant,
 					'amount' => $this->form_data['amount'],
-					// 'description' => $this->posted['description'],
-					// // 'Email' => (!empty($this->posted['email'])) ? $this->posted['email'] : "",
+					'description' => $this->form_data['description'],
+					// 'Email' => (!empty($this->posted['email'])) ? $this->posted['email'] : "",
 					'mobile' => (!empty($this->posted['mobile'])) ? $this->posted['mobile'] : "",
 					'callbackUrl' => get_site_url() . '/?' . learn_press_get_web_hook( 'zibal' ) . '=1&order_id='.$this->order->get_id(),
 				];
-			
-				$result = $this->post_to_zibal('request', $data);
+								
+				$result = $this->rest_payment_request($data);
 				
 				if($result->result == 100) {
 					$this->trackId = $result->trackId;
@@ -351,30 +370,25 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 			if(isset($request['learn_press_zibal']) && intval($request['learn_press_zibal']) === 1) {
 				if ($request['status'] == '2') {
 					$order = LP_Order::instance( $request['order_id'] );
-
 					$currency_code = learn_press_get_currency();
-
-					if ($currency_code == 'TOM') {
-						$amount = $order->order_total * 10 ;
+					if ($currency_code == 'IRR') {
+						$amount = $order->order_total;
 					} else {
-						$amount = $order->order_total ;
+						$amount = $order->order_total * 10;
 					}	
 					
 					$data = array(
 						'merchant' => $this->merchant,
-						'trackId' => $_GET['trackId']
+						'trackId' => $_GET['trackId'],
 					);
 
-					$result = $this->post_to_zibal('verify', $data);
+					$result = $this->rest_payment_verification($data);
 
-					if($result->result == 100) {
+					if($result->result == 100 || $result->result == 201) {
 						if($amount == $result->amount) {
 							$this->trackId = intval($_GET['trackId']);
-							$this->payment_status_completed($order , $request, $result);
+							$this->payment_status_completed($order , $request);
 							wp_redirect(esc_url( $this->get_return_url( $order ) ));
-							exit();
-						} else {
-							wp_redirect(esc_url( learn_press_get_page_link( 'checkout' ) ));
 							exit();
 						}
 					}
@@ -388,21 +402,55 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 				exit();
 			}
 		}
-
-		public function post_to_zibal($url, $data = false) {
-			$ch = curl_init();
-			curl_setopt($ch, CURLOPT_URL, "https://gateway.zibal.ir/v1/".$url);
-			curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json; charset=utf-8'));
-			curl_setopt($ch, CURLOPT_POST, 1);
-			if ($data) {
-				curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-	
-			}
+		
+		/**
+		 * Zibal REST payment request
+		 *
+		 */ 
+		public function rest_payment_request($data) {
+			$jsonData = json_encode($data);
+			$ch = curl_init($this->restPaymentRequestUrl);
+			curl_setopt($ch, CURLOPT_USERAGENT, 'Zibal Rest Api v1');
+			curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+				'Content-Type: application/json',
+				'Content-Length: ' . strlen($jsonData)
+			));
 			$result = curl_exec($ch);
+			$err = curl_error($ch);
+			$result = json_decode($result);
 			curl_close($ch);
-			return !empty($result) ? json_decode($result) : false;
+			if ($err) {
+				$result = (object) array("success"=>0);
+			}
+			return $result;
+		}
+		
+		/**
+		 * Zibal REST payment verification
+		 *
+		 */ 
+		public function rest_payment_verification($data) {
+			$jsonData = json_encode($data);
+			$ch = curl_init($this->restPaymentVerification);
+			curl_setopt($ch, CURLOPT_USERAGENT, 'Zibal Rest Api v1');
+			curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+			curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+				'Content-Type: application/json',
+				'Content-Length: ' . strlen($jsonData)
+			));
+			$result = curl_exec($ch);
+			$err = curl_error($ch);
+			$result = json_decode($result);
+			curl_close($ch);
+			if ($err) {
+				$result = (object) array("success"=>0);
+			}
+			return $result;
 		}
 		
 		/**
@@ -411,15 +459,16 @@ if ( ! class_exists( 'LP_Gateway_Zibal' ) ) {
 		 * @param LP_Order
 		 * @param request
 		 */
-		protected function payment_status_completed($order, $request , $result) {
-			if ( $result->result == 100 ) {
-				$this->payment_complete( $order, ( !empty( $result->result ) ? $result->result : '' ), __( 'Payment has been successfully completed', 'learnpress-zibal' ) );
-				update_post_meta( $order->get_id(), '_zibal_result', $result->result );
-				update_post_meta( $order->get_id(), '_zibal_trackId', $request['trackId'] );
-			} else {
-				exit();
+		protected function payment_status_completed( $order, $request ) {
+
+			// order status is already completed
+			if ( $order->has_status( 'completed' ) ) {
+				exit;
 			}
 
+			$this->payment_complete( $order, ( !empty( $request['trackId'] ) ? $request['trackId'] : '' ), __( 'Payment has been successfully completed', 'learnpress-zibal' ) );
+			update_post_meta( $order->get_id(), '_zibal_trackId', $request['trackId'] );
+			update_post_meta( $order->get_id(), '_zibal_trackId', $request['trackId'] );
 		}
 
 		/**
